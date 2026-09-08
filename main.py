@@ -239,6 +239,7 @@ async def async_main() -> None:
                 executor=executor,
                 position_manager=position_manager,
                 bot_state=bot_state,
+                trade_repo=trade_repo,
             )
 
         if config.telegram.enabled:
@@ -1060,49 +1061,77 @@ async def _execute_channel_signal(
     executor,
     position_manager,
     bot_state: BotState,
+    trade_repo=None,
 ) -> str:
     """
     Execute a parsed channel signal (from paste detection or /signal command).
 
-    signal_dict keys: symbol, direction, leverage, tp1, stop_loss, wallet_pct
+    Improvements:
+      - Fixed $1 margin per trade (not % of wallet)
+      - Quality filter: checks historical win rate for this pair+direction
+        and warns/skips if win rate is poor (configurable threshold)
     """
     import datetime
     from src.signals.signal import Direction, Signal, SignalType
     from src.risk.manager import RiskAssessment
 
-    # Channel signals support multiple simultaneous positions (no single-position guard)
-    BINANCE_MAX_LEVERAGE = 125   # Binance hard cap for most pairs
+    BINANCE_MAX_LEVERAGE = 125
+    # Fixed margin per trade in USDT (overrides wallet_pct)
+    FIXED_MARGIN_USD = float(os.environ.get("FIXED_MARGIN_USD", "1.0"))
+    # Min win rate required to place a trade (0 = always trade, 0.4 = need 40%+)
+    MIN_WIN_RATE = float(os.environ.get("MIN_WIN_RATE", "0.0"))
 
     try:
-        symbol     = signal_dict["symbol"]
-        direction  = Direction.LONG if signal_dict["direction"] == "LONG" else Direction.SHORT
-        stop       = float(signal_dict["stop_loss"])
-        tp         = signal_dict["tp1"]  # use TP1 as primary target
-        leverage   = min(int(signal_dict.get("leverage", 5)), BINANCE_MAX_LEVERAGE)
-        wallet_pct = float(signal_dict.get("wallet_pct", 0.01))
+        symbol    = signal_dict["symbol"]
+        direction = Direction.LONG if signal_dict["direction"] == "LONG" else Direction.SHORT
+        stop      = float(signal_dict["stop_loss"])
+        tp        = signal_dict["tp1"]
+        leverage  = min(int(signal_dict.get("leverage", 5)), BINANCE_MAX_LEVERAGE)
 
-        # Get current price
+        # ── Quality Filter ──────────────────────────────────────────
+        quality_line = ""
+        if trade_repo:
+            stats = trade_repo.pair_win_rate(symbol, direction.value)
+            if stats["enough_data"]:
+                wr = stats["win_rate"]
+                w  = stats["wins"]
+                l  = stats["losses"]
+                icon = "✅" if wr >= 0.5 else "⚠️" if wr >= 0.35 else "❌"
+                quality_line = f"\n📊 {symbol} {direction.value.upper()} history: {w}W/{l}L ({wr*100:.0f}% win rate) {icon}"
+                if MIN_WIN_RATE > 0 and wr < MIN_WIN_RATE:
+                    return (
+                        f"🚫 <b>Trade skipped — poor historical performance</b>\n"
+                        f"{symbol} {direction.value.upper()}: {w}W / {l}L ({wr*100:.0f}% win rate)\n"
+                        f"Required minimum: {MIN_WIN_RATE*100:.0f}%\n"
+                        f"Set MIN_WIN_RATE=0 in .env to disable this filter."
+                    )
+            else:
+                n = stats["trades"]
+                quality_line = f"\n📊 {symbol} {direction.value.upper()} history: {n} trade(s) — not enough data yet"
+
+        # ── Price & balance ─────────────────────────────────────────
         ticker = client.fetch_ticker(symbol)
         price  = float(ticker["last"])
 
-        # Validate stop direction
         if direction == Direction.LONG and stop >= price:
             return f"❌ Invalid signal: LONG stop ({stop}) must be below price ({price:.5f})"
         if direction == Direction.SHORT and stop <= price:
             return f"❌ Invalid signal: SHORT stop ({stop}) must be above price ({price:.5f})"
 
-        # Size: wallet_pct of FREE balance as margin
-        account      = client.fetch_account_info()
-        free_balance = float(account.get("USDT", {}).get("free", 0) or 0)
+        account       = client.fetch_account_info()
+        free_balance  = float(account.get("USDT", {}).get("free",  0) or 0)
         total_balance = float(account.get("USDT", {}).get("total", 0) or 0)
-        equity       = free_balance if free_balance > 0 else total_balance
-        if equity < 2.0:
+        equity        = free_balance if free_balance > 0 else total_balance
+        if equity < 1.0:
             return f"❌ Insufficient free balance: ${equity:.2f} USDT"
-        margin       = equity * wallet_pct
-        notional     = max(margin * leverage, 23.0)
-        notional     = min(notional, equity * 0.9 * leverage)
-        size         = notional / price
 
+        # ── Fixed $1 margin (improvement #2) ────────────────────────
+        margin   = min(FIXED_MARGIN_USD, equity * 0.9)   # never exceed 90% of balance
+        notional = max(margin * leverage, 23.0)           # Binance minimum $5, we use $23 buffer
+        notional = min(notional, equity * 0.9 * leverage)
+        size     = notional / price
+
+        # ── Build & execute ─────────────────────────────────────────
         now = datetime.datetime.now(datetime.timezone.utc)
         signal = Signal(
             timestamp=now,
@@ -1132,19 +1161,19 @@ async def _execute_channel_signal(
         position_manager.on_position_opened(assessment, orders)
 
         actual_margin = notional / leverage
-        tp_str = f"${tp:.5f}" if tp else "none"
-        capped = " (capped)" if int(signal_dict.get("leverage", 5)) > BINANCE_MAX_LEVERAGE else ""
+        tp_str  = f"${tp:.5f}" if tp else "none"
+        capped  = " (capped)" if int(signal_dict.get("leverage", 5)) > BINANCE_MAX_LEVERAGE else ""
         tp2_str = f"\nTP2: ${float(tp2):.5f} (25%)" if tp2 else ""
         tp3_str = f"\nTP3: ${float(tp3):.5f} (25%)" if tp3 else ""
         return (
-            f"✅ Signal trade executed!\n"
+            f"✅ <b>Signal trade executed!</b>{quality_line}\n\n"
             f"Pair: {symbol}\n"
             f"Direction: {direction.value.upper()}\n"
             f"Entry: ${price:.5f}\n"
             f"Stop Loss: ${stop:.5f}\n"
             f"TP1: {tp_str} (50%){tp2_str}{tp3_str}\n"
-            f"Size: {size:.2f} (${notional:.2f} notional)\n"
-            f"Margin: ~${actual_margin:.2f} ({wallet_pct*100:.0f}% wallet)\n"
+            f"Size: {size:.4f} (${notional:.2f} notional)\n"
+            f"Margin: ~${actual_margin:.2f} USDT\n"
             f"Leverage: {leverage}x{capped}"
         )
 

@@ -142,6 +142,37 @@ class TradeRepository:
             logger.error("TradeRepository.closed_trades_since failed: %s", e)
             return []
 
+    def pair_win_rate(self, symbol: str, direction: str, limit: int = 20) -> dict:
+        """
+        Return win rate stats for a specific pair + direction.
+        Returns dict with: trades, wins, losses, win_rate, enough_data (bool)
+        """
+        try:
+            rows = self._conn.execute(
+                """
+                SELECT pnl_usd FROM trades
+                WHERE exit_ts IS NOT NULL
+                  AND symbol = ?
+                  AND direction = ?
+                ORDER BY id DESC LIMIT ?
+                """,
+                (symbol, direction.lower(), limit),
+            ).fetchall()
+            if not rows:
+                return {"trades": 0, "wins": 0, "losses": 0, "win_rate": None, "enough_data": False}
+            wins   = sum(1 for r in rows if float(r[0] or 0) > 0)
+            losses = len(rows) - wins
+            return {
+                "trades":      len(rows),
+                "wins":        wins,
+                "losses":      losses,
+                "win_rate":    wins / len(rows),
+                "enough_data": len(rows) >= 5,   # need at least 5 trades to judge
+            }
+        except Exception as e:
+            logger.error("TradeRepository.pair_win_rate failed: %s", e)
+            return {"trades": 0, "wins": 0, "losses": 0, "win_rate": None, "enough_data": False}
+
     def recent_closed(self, limit: int = 10) -> list[sqlite3.Row]:
         try:
             return self._conn.execute(

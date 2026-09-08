@@ -59,7 +59,12 @@
       "Bash(python -c \"import ast; ast.parse\\(open\\('src/database/repository.py'\\).read\\(\\)\\); print\\('repository.py OK'\\)\")",
       "Bash(python -c \"import ast; ast.parse\\(open\\('src/position/manager.py'\\).read\\(\\)\\); print\\('manager.py OK'\\)\")",
       "Bash(ssh root@45.63.25.135 \"python3 --version && which python3\")",
-      "Bash(git add *)"
+      "Bash(git add *)",
+      "Bash(git remote *)",
+      "Bash(git branch *)",
+      "Bash(git push *)",
+      "Bash(python -c \"import ast; ast.parse\\(open\\('main.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
+      "Bash(git commit -m 'Add trade quality filter + fixed $1 margin per trade *)"
     ]
   }
 }
