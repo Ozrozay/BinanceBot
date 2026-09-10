@@ -1173,7 +1173,7 @@ async def _execute_channel_signal(
             f"Stop Loss: ${stop:.5f}\n"
             f"TP1: {tp_str} (50%){tp2_str}{tp3_str}\n"
             f"Size: {size:.4f} (${notional:.2f} notional)\n"
-            f"Margin: ~${actual_margin:.2f} USDT\n"
+            f"Margin: ~${actual_margin:.2f} USDT (🔒 Isolated)\n"
             f"Leverage: {leverage}x{capped}"
         )
 

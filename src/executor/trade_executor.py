@@ -75,7 +75,15 @@ class TradeExecutor:
             symbol, side, assessment.position_size, assessment.stop_price, assessment.take_profit_price,
         )
 
-        # 1. Set leverage — step down until Binance accepts it for this symbol
+        # 1a. Switch to ISOLATED margin — caps max loss to the margin on this trade.
+        # Silently ignored if already isolated (-4046). Binance requires no open
+        # position on the symbol when switching; channel signals always come in fresh.
+        try:
+            self.client.set_margin_mode(symbol, "isolated")
+        except Exception as e:
+            logger.warning("Could not set ISOLATED margin for %s (%s) — proceeding anyway", symbol, e)
+
+        # 1b. Set leverage — step down until Binance accepts it for this symbol
         desired = int(assessment.leverage_override) if assessment.leverage_override > 0 else int(self.config.risk.max_leverage)
         desired = max(1, desired)
         # Binance rejects leverage above the symbol's maximum (varies per pair).

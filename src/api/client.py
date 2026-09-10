@@ -136,6 +136,25 @@ class BinanceClient:
         self._require_trade_capable("set_leverage")
         return self._exchange.set_leverage(leverage, symbol)
 
+    def set_margin_mode(self, symbol: str, mode: str = "isolated") -> None:
+        """
+        Switch a symbol to ISOLATED or CROSS margin mode.
+
+        Binance requires no open position on the symbol when switching.
+        Silently ignores the "already set" error (-4046) so this is safe
+        to call unconditionally before every trade.
+        """
+        self._require_trade_capable("set_margin_mode")
+        try:
+            self._exchange.set_margin_mode(mode, symbol)
+            logger.info("Margin mode set to %s for %s", mode.upper(), symbol)
+        except Exception as e:
+            # -4046: "No need to change margin type." — already isolated, ignore.
+            if "-4046" in str(e) or "No need to change" in str(e):
+                logger.debug("Margin mode already %s for %s — skipping", mode.upper(), symbol)
+            else:
+                raise
+
     # ------------------------------------------------------------------
     # Convenience
     # ------------------------------------------------------------------
