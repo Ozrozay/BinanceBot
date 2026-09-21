@@ -138,7 +138,7 @@ def load_config() -> AppConfig:
             atr_trail_multiplier=float(os.environ.get("ATR_TRAIL_MULTIPLIER", "4.0")),
             rsi_entry_threshold=float(os.environ.get("RSI_ENTRY_THRESHOLD", "45.0")),
             adx_threshold=float(os.environ.get("ADX_THRESHOLD", "0.0")),
-            volume_filter=float(os.environ.get("VOLUME_FILTER", "0.0")),
+            volume_filter=float(os.environ.get("VOLUME_FILTER", "0.0") if os.environ.get("VOLUME_FILTER", "0.0").replace(".", "", 1).isdigit() else ("1.2" if os.environ.get("VOLUME_FILTER", "").lower() == "true" else "0.0")),
             sr_lookback=int(os.environ.get("SR_LOOKBACK", "0")),
             sr_zone_atr_mult=float(os.environ.get("SR_ZONE_ATR_MULT", "0.5")),
             macd_filter=os.environ.get("MACD_FILTER", "false").lower() == "true",
