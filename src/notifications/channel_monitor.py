@@ -12,7 +12,7 @@ import os
 from typing import Callable, Awaitable, Optional, List
 
 from telethon import TelegramClient, events
-from telethon.errors import SessionPasswordNeededError
+from telethon.errors import SessionPasswordNeededError, FloodWaitError, ChannelPrivateError, UsernameNotOccupiedError
 
 from src.notifications.telegram_commands import parse_channel_signal
 
@@ -49,12 +49,23 @@ class ChannelMonitor:
         entities = []
         for ch in self._channels:
             try:
-                entity = await self._client.get_entity(ch)
+                entity = await asyncio.wait_for(self._client.get_entity(ch), timeout=15.0)
                 name = entity.title if hasattr(entity, "title") else ch
                 logger.info("Channel resolved: %s (id=%s)", name, entity.id)
                 entities.append(entity)
+            except asyncio.TimeoutError:
+                logger.warning("Channel %s timed out resolving — skipping", ch)
+            except FloodWaitError as e:
+                logger.warning("FloodWait %ds resolving %s — skipping", e.seconds, ch)
+            except ChannelPrivateError:
+                logger.warning("Channel %s is private (not joined) — skipping", ch)
+            except UsernameNotOccupiedError:
+                logger.warning("Channel %s does not exist — skipping", ch)
             except Exception as e:
                 logger.error("Could not resolve channel %s: %s", ch, e)
+            await asyncio.sleep(0.5)  # brief pause to avoid flood limits
+
+        logger.info("Channel resolution complete: %d/%d resolved", len(entities), len(self._channels))
 
         if not entities:
             logger.error("No channels resolved — monitor inactive.")
