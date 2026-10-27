@@ -102,8 +102,17 @@ class SmartScalpStrategy(Strategy):
         df["vol_avg"]  = df["volume"].rolling(window=20).mean()
         return df
 
-    def generate_signal(self, data: pd.DataFrame, timestamp: datetime) -> Signal:
+    def generate_signal(self, data: pd.DataFrame, timestamp: datetime | None = None) -> Signal:
         df = self.compute_indicators(data)
+
+        # Extract timestamp from last bar if not provided
+        if timestamp is None:
+            ts_val = df["timestamp"].iloc[-1] if "timestamp" in df.columns else None
+            if ts_val is not None:
+                timestamp = ts_val if hasattr(ts_val, "tzinfo") else ts_val.to_pydatetime()
+            else:
+                from datetime import timezone
+                timestamp = datetime.now(timezone.utc)
 
         if len(df) < 3 or df["ema_fast"].isna().iloc[-1]:
             return self._hold(timestamp, "not enough data")
