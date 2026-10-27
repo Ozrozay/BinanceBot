@@ -35,9 +35,8 @@ class TradeExecutor:
             )
 
     # Binance Futures minimum order notional (USDT) — enforced exchange-side.
-    # $20 minimum + 15% buffer to survive step-size rounding (e.g. ETH rounds
-    # 0.00832 → 0.008, dropping notional below $20).
-    _MIN_NOTIONAL_USDT: float = 23.0
+    # True exchange minimum is $5 for most pairs. Use $5.50 as buffer.
+    _MIN_NOTIONAL_USDT: float = 5.5
 
     def execute(self, assessment: RiskAssessment) -> dict:
         """

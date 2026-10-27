@@ -1154,7 +1154,7 @@ async def _execute_channel_signal(
 
         # ── Fixed $1 margin (improvement #2) ────────────────────────
         margin   = min(FIXED_MARGIN_USD, equity * 0.9)   # never exceed 90% of balance
-        notional = max(margin * leverage, 23.0)           # Binance minimum $5, we use $23 buffer
+        notional = max(margin * leverage, 5.5)            # Binance minimum ~$5
         notional = min(notional, equity * 0.9 * leverage)
         size     = notional / price
 
