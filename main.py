@@ -120,6 +120,12 @@ async def async_main() -> None:
     from src.signals.signal import SignalType
     from src.strategy.trend_following import TrendFollowingStrategy
 
+    _strategy_name = os.environ.get("STRATEGY", "smart_scalp").lower()
+    if _strategy_name == "trend_following":
+        _strategy_cls = TrendFollowingStrategy
+    else:
+        from src.strategy.smart_scalp import SmartScalpStrategy as _strategy_cls  # default: smart_scalp
+
     # --- Database ---
     db_conn = init_db(config.database.path)
     signal_repo = SignalRepository(db_conn)
@@ -146,7 +152,8 @@ async def async_main() -> None:
         sys.exit(1)
 
     # --- Strategy + data ---
-    strategy  = TrendFollowingStrategy(config.strategy)
+    strategy  = _strategy_cls(config.strategy)
+    logger.info("Strategy: %s", strategy.name())
     collector = MarketDataCollector(client, config.data, config.strategy)
     signal_gen = SignalGenerator(strategy, db_conn)
 
@@ -355,6 +362,22 @@ async def async_main() -> None:
         initial_signal.reason,
     )
 
+    # --- Daily profit/loss limits ---
+    DAILY_PROFIT_TARGET = float(os.environ.get("DAILY_PROFIT_TARGET_USD", "1.0"))
+    DAILY_LOSS_LIMIT    = float(os.environ.get("DAILY_LOSS_LIMIT_USD",    "0.50"))
+
+    def _daily_pnl_exceeded() -> tuple[bool, str]:
+        """Return (halt, reason) if daily profit or loss limit is hit."""
+        try:
+            today_pnl = trade_repo.daily_pnl()
+        except Exception:
+            return False, ""
+        if today_pnl >= DAILY_PROFIT_TARGET:
+            return True, f"Daily profit target reached (${today_pnl:.2f} / ${DAILY_PROFIT_TARGET:.2f})"
+        if today_pnl <= -DAILY_LOSS_LIMIT:
+            return True, f"Daily loss limit hit (${today_pnl:.2f} / -${DAILY_LOSS_LIMIT:.2f})"
+        return False, ""
+
     # --- Per-bar callback ---
     async def on_bar_closed(bar: dict) -> None:
         nonlocal _htf_bar_counter, _scan_bar_counter
@@ -493,6 +516,10 @@ async def async_main() -> None:
             )
 
             # 3. Auto-execute if enabled, trade-capable, and no position already open
+            _halt, _halt_reason = _daily_pnl_exceeded()
+            if _halt:
+                logger.info("AUTO-TRADE HALTED: %s", _halt_reason)
+                return
             if (
                 bot_state.auto_trade
                 and executor is not None

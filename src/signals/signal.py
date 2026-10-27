@@ -33,6 +33,8 @@ class Signal:
     entry_price: float | None = None
     suggested_stop: float | None = None    # strategy's ATR-based stop suggestion
     suggested_tp: float | None = None      # strategy's first take-profit suggestion
+    suggested_tp2: float | None = None     # second take-profit level (25% close)
+    suggested_tp3: float | None = None     # third take-profit level (25% close)
 
     # Metadata for logging / debugging — never drives execution decisions
     reason: str = ""              # human-readable: "EMA50 cross + RSI>50"

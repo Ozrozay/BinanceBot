@@ -64,7 +64,30 @@
       "Bash(git branch *)",
       "Bash(git push *)",
       "Bash(python -c \"import ast; ast.parse\\(open\\('main.py'\\).read\\(\\)\\); print\\('OK'\\)\")",
-      "Bash(git commit -m 'Add trade quality filter + fixed $1 margin per trade *)"
+      "Bash(git commit -m 'Add trade quality filter + fixed $1 margin per trade *)",
+      "Bash(git commit -m 'Switch to ISOLATED margin mode for all futures trades *)",
+      "Bash(rsync -avz --exclude=.git --exclude=__pycache__ --exclude=*.pyc --exclude=data/ --exclude=.venv --exclude=*.session /Users/oz/binancebot/ root@96.30.207.209:/root/binancebot/)",
+      "Bash(rsync -avz --exclude=.git --exclude=__pycache__ --exclude=*.pyc --exclude=data/ --exclude=.venv --exclude=*.session /Users/oz/binancebot/ root@45.63.25.135:/root/binancebot/)",
+      "Bash(git commit -m 'Fix VOLUME_FILTER accepting '\\\\''true'\\\\'' as a boolean value *)",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"ls /root/binancebot/src/\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"ls /root/binancebot/src/data/\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"grep SIGNAL_CHANNEL /root/binancebot/.env\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"echo 'SIGNAL_CHANNEL=https://t.me/CryptoWorld0033,https://t.me/WhaleCryptossss,https://t.me/cryptobomond,https://t.me/cryp2day' >> /root/binancebot/.env && grep SIGNAL_CHANNEL /root/binancebot/.env\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"grep -v '^SIGNAL_CHANNEL=' /root/binancebot/.env > /tmp/env_tmp && echo 'SIGNAL_CHANNEL=https://t.me/CryptoWorld0033,https://t.me/WhaleCryptossss,https://t.me/cryptobomond,https://t.me/cryp2day' >> /tmp/env_tmp && mv /tmp/env_tmp /root/binancebot/.env && grep SIGNAL_CHANNEL /root/binancebot/.env\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"systemctl status binancebot --no-pager\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"tail -50 /root/binancebot/logs/bot.log\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"df -h / && du -sh /root/binancebot/logs/ /root/binancebot/data/ /tmp/ /var/log/\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"du -sh /* 2>/dev/null | sort -rh | head -15\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"apt-get purge snapd -y && apt-get clean && journalctl --vacuum-size=10M && df -h /\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"systemctl restart binancebot && sleep 5 && systemctl status binancebot --no-pager | head -20\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"apt-get autoremove -y && apt-get autoclean && rm -rf /var/cache/apt/* /tmp/* && find /var/log -name '*.gz' -delete && find /var/log -name '*.1' -delete && df -h /\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"tail -30 /root/binancebot/logs/bot.log\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"curl -s --max-time 10 https://fapi.binance.com/fapi/v1/ping && echo OK\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"curl -s --max-time 10 https://google.com && echo OK || echo FAILED; ping -c 3 8.8.8.8\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"echo 'nameserver 1.1.1.1' > /etc/resolv.conf && echo 'nameserver 8.8.8.8' >> /etc/resolv.conf && curl -s --max-time 10 https://fapi.binance.com/fapi/v1/ping && echo OK\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"systemctl restart binancebot && sleep 8 && tail -20 /root/binancebot/logs/bot.log\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"apt-get install -y ntpdate && ntpdate -u pool.ntp.org && systemctl restart binancebot && sleep 8 && tail -10 /root/binancebot/logs/bot.log\")",
+      "Bash(ssh -p 5477 root@139.99.145.71 \"ntpdate -u pool.ntp.org && systemctl restart binancebot && sleep 8 && tail -10 /root/binancebot/logs/bot.log\")"
     ]
   }
 }
