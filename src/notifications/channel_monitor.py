@@ -42,7 +42,15 @@ class ChannelMonitor:
     async def start(self) -> None:
         os.makedirs("data", exist_ok=True)
         self._client = TelegramClient(SESSION_FILE, self._api_id, self._api_hash)
-        await self._client.start()
+        await self._client.connect()
+
+        if not await self._client.is_user_authorized():
+            logger.error(
+                "Channel monitor: Telegram session not authorized. "
+                "Run the bot interactively once to complete login."
+            )
+            await self._client.disconnect()
+            return
 
         logger.info("Channel monitor connected. Watching %d channel(s)...", len(self._channels))
 
